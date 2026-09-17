@@ -58,6 +58,7 @@ def main():
     ap.add_argument('--tolerance', type=float, default=2.0, help='Hz')
     ap.add_argument('--duration-tolerance', type=float, default=0.05, help='seconds')
     ap.add_argument('--min-seconds', type=float, help='the signal must last at least this long (live sources, where the exact length is not known)')
+    ap.add_argument('--skip-seconds', type=float, default=0.1, help='analyse the tone from this long after the signal starts (default 0.1; use a few seconds for a live source, whose first moments may be a tuner settling)')
     args = ap.parse_args()
 
     tag, channels, rate, bits, s = read_wav(args.path)
@@ -73,7 +74,7 @@ def main():
     print('signal from %.3fs to %.3fs (%.3fs)' % (start, end, end - start))
 
     # One second from a little after the start, or what there is; a Hann window keeps the peak clean.
-    a = active[0] + rate // 10
+    a = active[0] + int(args.skip_seconds * rate)
     seg = s[a:a + rate]
     if len(seg) < rate // 4:
         seg = s[active[0]:active[-1]]
