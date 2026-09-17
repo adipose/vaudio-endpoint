@@ -219,7 +219,10 @@ static int CmdPlay(const std::string& DeviceMatch, bool Exclusive, DWORD Rate, W
     REFERENCE_TIME Period = 0;
     Client->GetDevicePeriod(&Period, nullptr);
     DWORD Flags = Exclusive ? 0 : (AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY);
-    REFERENCE_TIME Buffer = Exclusive ? Period * 4 : 2000000;   // 200 ms in shared mode
+    // 200 ms either way. An exclusive-mode client that lets its buffer run dry is not told: the device simply
+    // plays the stale contents again, and a capture of that is longer than what was written. A few device
+    // periods is how a low-latency client would size it, and on a busy VM it is not enough.
+    REFERENCE_TIME Buffer = 2000000;
     hr = Client->Initialize(Exclusive ? AUDCLNT_SHAREMODE_EXCLUSIVE : AUDCLNT_SHAREMODE_SHARED, Flags, Buffer, Exclusive ? Period : 0, &Format.Format, nullptr);
     if (hr == AUDCLNT_E_BUFFER_SIZE_NOT_ALIGNED)
     {
@@ -268,7 +271,7 @@ static int CmdPlay(const std::string& DeviceMatch, bool Exclusive, DWORD Rate, W
     hr = Client->Start();
     if (FAILED(hr)) Fail("IAudioClient::Start", hr);
 
-    DWORD SleepMs = (DWORD)(1000.0 * BufferFrames / Rate / 2);
+    DWORD SleepMs = (DWORD)(1000.0 * BufferFrames / Rate / 4);
     if (SleepMs < 1) SleepMs = 1;
     while (Written < Total + BufferFrames)   // run one buffer of silence past the end so the tail is played out
     {

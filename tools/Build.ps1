@@ -21,11 +21,17 @@
 
 .PARAMETER NoSign
     Build only.
+
+.PARAMETER ToolsOnly
+    Rebuild only the user-mode test client. The driver, its version stamp and
+    its signature are left exactly as they are, so guests already provisioned
+    with that driver stay identical to ones provisioned afterwards.
 #>
 [CmdletBinding()]
 param(
     [string] $CertName = 'vaudio-endpoint test signing',
-    [switch] $NoSign
+    [switch] $NoSign,
+    [switch] $ToolsOnly
 )
 
 Set-StrictMode -Version Latest
@@ -95,6 +101,8 @@ $env:INCLUDE = @(
 $env:LIB = @((Join-Path $tc.WdkRoot "Lib\$ver\km\x64"), (Join-Path $tc.WdkRoot "Lib\wdf\kmdf\x64\$kmdf")) -join ';'
 
 # src\tools holds user-mode test clients, built separately below.
+if (-not $ToolsOnly) {
+
 $sources = Get-ChildItem $src -Recurse -Filter *.cpp | Where-Object { $_.FullName -notmatch '\\src\\tools\\' } | ForEach-Object FullName
 
 Write-Host "Compiling vaudio.sys ($($sources.Count) files) ..." -ForegroundColor Cyan
@@ -126,6 +134,8 @@ Invoke-Tool link.exe $linkArgs 'link'
 Copy-Item (Join-Path $src 'Main\vaudio.inf') $out -Force
 Set-InfDriverVer (Join-Path $out 'vaudio.inf')
 
+}   # -not $ToolsOnly
+
 # --- Test client -------------------------------------------------------------
 #
 # wasapiprobe is an ordinary user-mode program: the VC runtime and the SDK's um headers, none of the km ones.
@@ -149,6 +159,11 @@ $clArgs = @(
     '/link', '/SUBSYSTEM:CONSOLE', 'ole32.lib', 'avrt.lib'
 )
 Invoke-Tool cl.exe $clArgs 'cl (wasapiprobe)'
+
+if ($ToolsOnly) {
+    Write-Host "Built the test client only: $out" -ForegroundColor Green
+    return
+}
 
 if ($NoSign) {
     Write-Host "Built (unsigned): $out" -ForegroundColor Green
