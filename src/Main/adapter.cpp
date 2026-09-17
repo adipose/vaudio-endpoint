@@ -48,7 +48,7 @@ DRIVER_DISPATCH PnpHandler;
 // Rendering streams are not saved to a file by default. Use the registry value 
 // DoNotCreateDataFiles (DWORD) = 0 to override this default.
 //
-DWORD g_DoNotCreateDataFiles = 1;  // default is off.
+DWORD g_DoNotCreateDataFiles = 0;  // A test endpoint exists to be read back: capture is on unless the registry says otherwise.
 DWORD g_DisableToneGenerator = 0;  // default is to generate tones.
 UNICODE_STRING g_RegistryPath;      // This is used to store the registry settings path for the driver
 

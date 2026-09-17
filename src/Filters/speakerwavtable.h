@@ -20,9 +20,9 @@ Abstract:
 
 #define SPEAKER_HOST_MAX_CHANNELS                   2       // Max Channels.
 #define SPEAKER_HOST_MIN_BITS_PER_SAMPLE            16      // Min Bits Per Sample
-#define SPEAKER_HOST_MAX_BITS_PER_SAMPLE            16      // Max Bits Per Sample
-#define SPEAKER_HOST_MIN_SAMPLE_RATE                48000   // Min Sample Rate
-#define SPEAKER_HOST_MAX_SAMPLE_RATE                48000   // Max Sample Rate
+#define SPEAKER_HOST_MAX_BITS_PER_SAMPLE            32      // Max Bits Per Sample
+#define SPEAKER_HOST_MIN_SAMPLE_RATE                44100   // Min Sample Rate
+#define SPEAKER_HOST_MAX_SAMPLE_RATE                192000  // Max Sample Rate
 
 //
 // Max # of pin instances.
@@ -31,34 +31,30 @@ Abstract:
 
 //=============================================================================
 
+// The sample offered 48 kHz 16-bit stereo and nothing else. A test endpoint has to be able to say yes and no to
+// more than that: exclusive-mode clients negotiate against this list, and the shared-mode mix format is chosen
+// from it. Every entry is PCM stereo; rate and depth vary.
+#define VAUDIO_PCM_FORMAT(rate, bits)                                                   {                                                                                       {                                                                                       sizeof(KSDATAFORMAT_WAVEFORMATEXTENSIBLE),                                          0,                                                                                  0,                                                                                  0,                                                                                  STATICGUIDOF(KSDATAFORMAT_TYPE_AUDIO),                                              STATICGUIDOF(KSDATAFORMAT_SUBTYPE_PCM),                                             STATICGUIDOF(KSDATAFORMAT_SPECIFIER_WAVEFORMATEX)                               },                                                                                  {                                                                                       {                                                                                       WAVE_FORMAT_EXTENSIBLE,                                                             2,                                                                                  (rate),                                                                             (rate) * 2 * ((bits) / 8),                                                          2 * ((bits) / 8),                                                                   (bits),                                                                             sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX)                             },                                                                                  (bits),                                                                             KSAUDIO_SPEAKER_STEREO,                                                             STATICGUIDOF(KSDATAFORMAT_SUBTYPE_PCM)                                          }                                                                               }
+
 static 
 KSDATAFORMAT_WAVEFORMATEXTENSIBLE SpeakerHostPinSupportedDeviceFormats[] =
 {
-    { // 0
-        {
-            sizeof(KSDATAFORMAT_WAVEFORMATEXTENSIBLE),
-            0,
-            0,
-            0,
-            STATICGUIDOF(KSDATAFORMAT_TYPE_AUDIO),
-            STATICGUIDOF(KSDATAFORMAT_SUBTYPE_PCM),
-            STATICGUIDOF(KSDATAFORMAT_SPECIFIER_WAVEFORMATEX)
-        },
-        {
-            {
-                WAVE_FORMAT_EXTENSIBLE,
-                2,
-                48000,
-                192000,
-                4,
-                16,
-                sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX)
-            },
-            16,
-            KSAUDIO_SPEAKER_STEREO,
-            STATICGUIDOF(KSDATAFORMAT_SUBTYPE_PCM)
-        }
-    }
+    VAUDIO_PCM_FORMAT(48000, 16),   // 0: the default, as in the sample
+    VAUDIO_PCM_FORMAT(44100, 16),
+    VAUDIO_PCM_FORMAT(44100, 24),
+    VAUDIO_PCM_FORMAT(44100, 32),
+    VAUDIO_PCM_FORMAT(48000, 24),
+    VAUDIO_PCM_FORMAT(48000, 32),
+    VAUDIO_PCM_FORMAT(88200, 16),
+    VAUDIO_PCM_FORMAT(88200, 24),
+    VAUDIO_PCM_FORMAT(88200, 32),
+    VAUDIO_PCM_FORMAT(96000, 16),
+    VAUDIO_PCM_FORMAT(96000, 24),
+    VAUDIO_PCM_FORMAT(96000, 32),
+    VAUDIO_PCM_FORMAT(176400, 24),
+    VAUDIO_PCM_FORMAT(192000, 16),
+    VAUDIO_PCM_FORMAT(192000, 24),
+    VAUDIO_PCM_FORMAT(192000, 32),
 };
 
 //
