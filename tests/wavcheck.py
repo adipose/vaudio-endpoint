@@ -57,6 +57,7 @@ def main():
     ap.add_argument('--seconds', type=float, help='expected length of the signal')
     ap.add_argument('--tolerance', type=float, default=2.0, help='Hz')
     ap.add_argument('--duration-tolerance', type=float, default=0.05, help='seconds')
+    ap.add_argument('--min-seconds', type=float, help='the signal must last at least this long (live sources, where the exact length is not known)')
     args = ap.parse_args()
 
     tag, channels, rate, bits, s = read_wav(args.path)
@@ -91,6 +92,8 @@ def main():
         failures.append('bits is %d, expected %d' % (bits, args.bits))
     if args.seconds and abs((end - start) - args.seconds) > args.duration_tolerance:
         failures.append('signal lasts %.3fs, expected %.3fs' % (end - start, args.seconds))
+    if args.min_seconds and (end - start) < args.min_seconds:
+        failures.append('signal lasts %.3fs, expected at least %.3fs' % (end - start, args.min_seconds))
     if args.expect:
         want = [float(x) for x in args.expect.split(',')]
         if len(want) != channels:
@@ -102,7 +105,7 @@ def main():
 
     for f in failures:
         print('FAIL: ' + f)
-    if args.expect or args.rate or args.bits or args.seconds:
+    if args.expect or args.rate or args.bits or args.seconds or args.min_seconds:
         print('PASS' if not failures else 'FAILED')
     sys.exit(1 if failures else 0)
 
