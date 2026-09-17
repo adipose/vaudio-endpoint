@@ -15,7 +15,7 @@
     An open administrative PSSession to the target, with the driver installed (tools\Install-VAudio.ps1).
 
 .PARAMETER ConsoleUser
-    The account logged on at the target's console.
+    The account logged on at the target's console. Default: whoever is.
 
 .PARAMETER OutDir
     Where to put the fetched captures and the result JSON. Default: build\test-results\<timestamp>.
@@ -23,7 +23,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)] [System.Management.Automation.Runspaces.PSSession] $Session,
-    [string] $ConsoleUser = 'dpitest',
+    [string] $ConsoleUser,
     [string] $OutDir
 )
 
@@ -35,6 +35,11 @@ if (-not $OutDir) { $OutDir = Join-Path $root ("build\test-results\" + (Get-Date
 New-Item -ItemType Directory -Force $OutDir | Out-Null
 
 $captureDir = 'C:\Windows\System32\drivers\DriverData\Audio_Samples\SimpleAudioSample'
+
+if (-not $ConsoleUser) {
+    $ConsoleUser = ((Invoke-Command -Session $Session { (Get-CimInstance Win32_ComputerSystem).UserName }) -split '\\')[-1]
+    if (-not $ConsoleUser) { throw 'Nobody is logged on at the target console; an audio client needs a desktop session.' }
+}
 $tag = Get-Date -Format 'HHmmss'
 
 Copy-Item -ToSession $Session -Path (Join-Path $root 'build\out\x64\wasapiprobe.exe'), (Join-Path $PSScriptRoot 'AudioFormats.guest.ps1') -Destination 'C:\vaudio\' -Force
