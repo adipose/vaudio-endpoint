@@ -96,3 +96,12 @@ The target must be in test-signing mode (`bcdedit /set testsigning on`, then
 reboot); the script checks first. `-Remove` takes the device and the driver
 package out again. Built against the Windows 10 2004 DDI (the sample allocates
 with `ExAllocatePool2`), so that is the oldest target.
+
+## Licence
+
+Two licences, by directory -- see `NOTICE`. Everything under `src/` derives
+from Microsoft's SimpleAudioSample and remains under the Microsoft Public
+License (`LICENSE.microsoft-sample`), modifications included; the first commit
+is the pristine sample, so the history shows exactly what changed. The tools
+and tests outside `src/` are MIT (`LICENSE`). GitHub's licence badge can only
+show one of the two.
