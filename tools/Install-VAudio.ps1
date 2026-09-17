@@ -62,8 +62,11 @@ Invoke-Command -Session $Session {
     $ErrorActionPreference = 'Stop'
     Set-Location 'C:\vaudio'
 
+    # certutil rather than Import-Certificate: the cmdlet is refused with access denied in a remote session
+    # on Windows 11, where certutil doing the same thing is not.
     foreach ($store in 'Root', 'TrustedPublisher') {
-        Import-Certificate -FilePath 'C:\vaudio\vaudio-test.cer' -CertStoreLocation "Cert:\LocalMachine\$store" | Out-Null
+        certutil.exe -f -addstore $store 'C:\vaudio\vaudio-test.cer' | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "certutil could not add the test certificate to $store (exit $LASTEXITCODE)" }
     }
 
     $existing = Get-PnpDevice -ErrorAction SilentlyContinue | Where-Object { $_.HardwareID -contains 'ROOT\VAudioEndpoint' }
