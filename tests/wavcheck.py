@@ -56,6 +56,7 @@ def main():
     ap.add_argument('--bits', type=int)
     ap.add_argument('--seconds', type=float, help='expected length of the signal')
     ap.add_argument('--tolerance', type=float, default=2.0, help='Hz')
+    ap.add_argument('--duration-tolerance', type=float, default=0.05, help='seconds')
     args = ap.parse_args()
 
     tag, channels, rate, bits, s = read_wav(args.path)
@@ -88,7 +89,7 @@ def main():
         failures.append('rate is %d, expected %d' % (rate, args.rate))
     if args.bits and bits != args.bits:
         failures.append('bits is %d, expected %d' % (bits, args.bits))
-    if args.seconds and abs((end - start) - args.seconds) > 0.05:
+    if args.seconds and abs((end - start) - args.seconds) > args.duration_tolerance:
         failures.append('signal lasts %.3fs, expected %.3fs' % (end - start, args.seconds))
     if args.expect:
         want = [float(x) for x in args.expect.split(',')]
