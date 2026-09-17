@@ -86,7 +86,7 @@ PCPIN_DESCRIPTOR SpeakerTopoMiniportPins[] =
 static
 KSJACK_DESCRIPTION SpeakerJackDescBridge =
 {
-    KSAUDIO_SPEAKER_STEREO,
+    KSAUDIO_SPEAKER_7POINT1_SURROUND,          // so that Windows offers 5.1 and 7.1 speaker setups
     JACKDESC_RGB(0xB3,0xC9,0x8C),              // Color spec for green
     eConnTypeUnknown,
     eGeoLocFront,

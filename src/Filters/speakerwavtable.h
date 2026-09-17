@@ -16,9 +16,9 @@ Abstract:
 
 // To keep the code simple assume device supports only 48KHz, 16-bit, stereo (PCM and NON-PCM)
 
-#define SPEAKER_DEVICE_MAX_CHANNELS                 2       // Max Channels.
+#define SPEAKER_DEVICE_MAX_CHANNELS                 8       // Max Channels.
 
-#define SPEAKER_HOST_MAX_CHANNELS                   2       // Max Channels.
+#define SPEAKER_HOST_MAX_CHANNELS                   8       // Max Channels.
 #define SPEAKER_HOST_MIN_BITS_PER_SAMPLE            16      // Min Bits Per Sample
 #define SPEAKER_HOST_MAX_BITS_PER_SAMPLE            32      // Max Bits Per Sample
 #define SPEAKER_HOST_MIN_SAMPLE_RATE                44100   // Min Sample Rate
@@ -33,28 +33,74 @@ Abstract:
 
 // The sample offered 48 kHz 16-bit stereo and nothing else. A test endpoint has to be able to say yes and no to
 // more than that: exclusive-mode clients negotiate against this list, and the shared-mode mix format is chosen
-// from it. Every entry is PCM stereo; rate and depth vary.
-#define VAUDIO_PCM_FORMAT(rate, bits)                                                   {                                                                                       {                                                                                       sizeof(KSDATAFORMAT_WAVEFORMATEXTENSIBLE),                                          0,                                                                                  0,                                                                                  0,                                                                                  STATICGUIDOF(KSDATAFORMAT_TYPE_AUDIO),                                              STATICGUIDOF(KSDATAFORMAT_SUBTYPE_PCM),                                             STATICGUIDOF(KSDATAFORMAT_SPECIFIER_WAVEFORMATEX)                               },                                                                                  {                                                                                       {                                                                                       WAVE_FORMAT_EXTENSIBLE,                                                             2,                                                                                  (rate),                                                                             (rate) * 2 * ((bits) / 8),                                                          2 * ((bits) / 8),                                                                   (bits),                                                                             sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX)                             },                                                                                  (bits),                                                                             KSAUDIO_SPEAKER_STEREO,                                                             STATICGUIDOF(KSDATAFORMAT_SUBTYPE_PCM)                                          }                                                                               }
+// from it. PCM throughout; stereo at every common rate and depth, 5.1 (both layouts) and 7.1 at 48 and 96 kHz.
+// The miniport matches the channel mask exactly, which is why 5.1 appears twice.
+#define VAUDIO_PCM_FORMAT(rate, bits, channels, mask) \
+    { \
+        { \
+            sizeof(KSDATAFORMAT_WAVEFORMATEXTENSIBLE), \
+            0, \
+            0, \
+            0, \
+            STATICGUIDOF(KSDATAFORMAT_TYPE_AUDIO), \
+            STATICGUIDOF(KSDATAFORMAT_SUBTYPE_PCM), \
+            STATICGUIDOF(KSDATAFORMAT_SPECIFIER_WAVEFORMATEX) \
+        }, \
+        { \
+            { \
+                WAVE_FORMAT_EXTENSIBLE, \
+                (channels), \
+                (rate), \
+                (rate) * (channels) * ((bits) / 8), \
+                (channels) * ((bits) / 8), \
+                (bits), \
+                sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX) \
+            }, \
+            (bits), \
+            (mask), \
+            STATICGUIDOF(KSDATAFORMAT_SUBTYPE_PCM) \
+        } \
+    }
 
 static 
 KSDATAFORMAT_WAVEFORMATEXTENSIBLE SpeakerHostPinSupportedDeviceFormats[] =
 {
-    VAUDIO_PCM_FORMAT(48000, 16),   // 0: the default, as in the sample
-    VAUDIO_PCM_FORMAT(44100, 16),
-    VAUDIO_PCM_FORMAT(44100, 24),
-    VAUDIO_PCM_FORMAT(44100, 32),
-    VAUDIO_PCM_FORMAT(48000, 24),
-    VAUDIO_PCM_FORMAT(48000, 32),
-    VAUDIO_PCM_FORMAT(88200, 16),
-    VAUDIO_PCM_FORMAT(88200, 24),
-    VAUDIO_PCM_FORMAT(88200, 32),
-    VAUDIO_PCM_FORMAT(96000, 16),
-    VAUDIO_PCM_FORMAT(96000, 24),
-    VAUDIO_PCM_FORMAT(96000, 32),
-    VAUDIO_PCM_FORMAT(176400, 24),
-    VAUDIO_PCM_FORMAT(192000, 16),
-    VAUDIO_PCM_FORMAT(192000, 24),
-    VAUDIO_PCM_FORMAT(192000, 32),
+    VAUDIO_PCM_FORMAT(48000, 16, 2, KSAUDIO_SPEAKER_STEREO),   // 0: the default, as in the sample
+    VAUDIO_PCM_FORMAT(44100, 16, 2, KSAUDIO_SPEAKER_STEREO),
+    VAUDIO_PCM_FORMAT(44100, 24, 2, KSAUDIO_SPEAKER_STEREO),
+    VAUDIO_PCM_FORMAT(44100, 32, 2, KSAUDIO_SPEAKER_STEREO),
+    VAUDIO_PCM_FORMAT(48000, 24, 2, KSAUDIO_SPEAKER_STEREO),
+    VAUDIO_PCM_FORMAT(48000, 32, 2, KSAUDIO_SPEAKER_STEREO),
+    VAUDIO_PCM_FORMAT(88200, 16, 2, KSAUDIO_SPEAKER_STEREO),
+    VAUDIO_PCM_FORMAT(88200, 24, 2, KSAUDIO_SPEAKER_STEREO),
+    VAUDIO_PCM_FORMAT(88200, 32, 2, KSAUDIO_SPEAKER_STEREO),
+    VAUDIO_PCM_FORMAT(96000, 16, 2, KSAUDIO_SPEAKER_STEREO),
+    VAUDIO_PCM_FORMAT(96000, 24, 2, KSAUDIO_SPEAKER_STEREO),
+    VAUDIO_PCM_FORMAT(96000, 32, 2, KSAUDIO_SPEAKER_STEREO),
+    VAUDIO_PCM_FORMAT(176400, 16, 2, KSAUDIO_SPEAKER_STEREO),
+    VAUDIO_PCM_FORMAT(176400, 24, 2, KSAUDIO_SPEAKER_STEREO),
+    VAUDIO_PCM_FORMAT(176400, 32, 2, KSAUDIO_SPEAKER_STEREO),
+    VAUDIO_PCM_FORMAT(192000, 16, 2, KSAUDIO_SPEAKER_STEREO),
+    VAUDIO_PCM_FORMAT(192000, 24, 2, KSAUDIO_SPEAKER_STEREO),
+    VAUDIO_PCM_FORMAT(192000, 32, 2, KSAUDIO_SPEAKER_STEREO),
+    VAUDIO_PCM_FORMAT(48000, 16, 6, KSAUDIO_SPEAKER_5POINT1),
+    VAUDIO_PCM_FORMAT(48000, 24, 6, KSAUDIO_SPEAKER_5POINT1),
+    VAUDIO_PCM_FORMAT(48000, 32, 6, KSAUDIO_SPEAKER_5POINT1),
+    VAUDIO_PCM_FORMAT(96000, 16, 6, KSAUDIO_SPEAKER_5POINT1),
+    VAUDIO_PCM_FORMAT(96000, 24, 6, KSAUDIO_SPEAKER_5POINT1),
+    VAUDIO_PCM_FORMAT(96000, 32, 6, KSAUDIO_SPEAKER_5POINT1),
+    VAUDIO_PCM_FORMAT(48000, 16, 6, KSAUDIO_SPEAKER_5POINT1_SURROUND),
+    VAUDIO_PCM_FORMAT(48000, 24, 6, KSAUDIO_SPEAKER_5POINT1_SURROUND),
+    VAUDIO_PCM_FORMAT(48000, 32, 6, KSAUDIO_SPEAKER_5POINT1_SURROUND),
+    VAUDIO_PCM_FORMAT(96000, 16, 6, KSAUDIO_SPEAKER_5POINT1_SURROUND),
+    VAUDIO_PCM_FORMAT(96000, 24, 6, KSAUDIO_SPEAKER_5POINT1_SURROUND),
+    VAUDIO_PCM_FORMAT(96000, 32, 6, KSAUDIO_SPEAKER_5POINT1_SURROUND),
+    VAUDIO_PCM_FORMAT(48000, 16, 8, KSAUDIO_SPEAKER_7POINT1_SURROUND),
+    VAUDIO_PCM_FORMAT(48000, 24, 8, KSAUDIO_SPEAKER_7POINT1_SURROUND),
+    VAUDIO_PCM_FORMAT(48000, 32, 8, KSAUDIO_SPEAKER_7POINT1_SURROUND),
+    VAUDIO_PCM_FORMAT(96000, 16, 8, KSAUDIO_SPEAKER_7POINT1_SURROUND),
+    VAUDIO_PCM_FORMAT(96000, 24, 8, KSAUDIO_SPEAKER_7POINT1_SURROUND),
+    VAUDIO_PCM_FORMAT(96000, 32, 8, KSAUDIO_SPEAKER_7POINT1_SURROUND),
 };
 
 //

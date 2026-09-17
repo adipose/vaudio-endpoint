@@ -23,10 +23,32 @@ which had **no audio endpoint at all** beforehand, 2026-09-17:
 | Play a 4.000 s stereo WAV (1000 Hz left, 2500 Hz right) through the shared-mode engine | yes |
 | Captured file: 48 kHz 16-bit stereo, signal 4.000 s long, 1000.0 Hz on channel 0, 2500.0 Hz on channel 1 | yes |
 
-Not yet proven: exclusive-mode negotiation against the extended format list
-(44.1 to 192 kHz, 16/24/32-bit -- the sample offered only 48 kHz 16-bit);
-anything beyond stereo, which also needs channel-configuration support in the
-topology miniport; bitstream (AC-3, DTS) formats.
+Exclusive mode and multichannel, same guest, same day, with
+`tests\Test-AudioFormats.ps1` (which plays a different tone on every channel
+through `wasapiprobe.exe` and checks the driver's capture with `wavcheck.py`):
+
+| | |
+|---|---|
+| Exclusive-mode `IsFormatSupported` says yes to exactly the 30 formats the driver lists (stereo 44.1-192 kHz, 5.1 and 7.1 at 48 and 96 kHz, each at 16/24/32 bit) and no to the rest | yes |
+| Shared stereo; exclusive stereo at 44.1/16, 96/24 and 192/32: right rate, depth, 2.000 s, right tone per channel | yes |
+| Exclusive 5.1 at 48/16 and 7.1 at 48/24 and 96/32 (3 MB/s): every channel carries its own tone, nothing missing | yes |
+| Exclusive 22.05 kHz, which the driver does not list, is refused with AUDCLNT_E_UNSUPPORTED_FORMAT | yes |
+
+Getting there found a bug in Microsoft's sample worth knowing about if you
+start from it: `CSaveData::WriteData` truncates any write longer than one
+16 KB frame and discards the rest, and only the event-driven buffer path ever
+enlarges the frame. A timer-driven exclusive stream at a high byte rate loses
+the excess on every tick -- 3% of the audio at 576 KB/s, two thirds at 3 MB/s
+-- and the result still looks like audio. Fixed here (see the comment at the
+top of `src/Utilities/savedata.cpp`); the test above is what catches it.
+
+Not yet proven: shared-mode multichannel (the mix format stays stereo until
+the endpoint's speaker configuration is changed in Windows); bitstream
+formats (AC-3, DTS), which the format table does not list.
+
+A shared-mode capture contains everything the system played, not only the
+program under test -- a notification sound lengthens it. Exclusive mode, or a
+guest with system sounds off, avoids that.
 
 ## Where the audio goes
 
@@ -37,9 +59,16 @@ is first set up, which leaves a run of 68-byte header-only files; a test wants
 the newest file with data in it. Set the driver's `DoNotCreateDataFiles`
 registry value to 1 to turn capture off.
 
+The capture folder is readable by administrators and SYSTEM only, so a test
+fetches captures from an administrative session, not as the console user.
+
 `tests/wavcheck.py` reads such a file (it is WAVE_FORMAT_EXTENSIBLE, which
 Python's `wave` module rejects before 3.12) and reports format, where the
-signal starts and ends, and the dominant frequency and peak level per channel.
+signal starts and ends, and the dominant frequency and peak level per channel;
+with `--expect 400,700,...` it asserts them. `wasapiprobe.exe` (built alongside
+the driver) is the matching player: `formats` lists what the endpoint accepts
+in exclusive mode, `play` renders a tone per channel in a chosen format, shared
+or exclusive.
 
 ## Build
 

@@ -155,6 +155,11 @@ public:
         _In_reads_bytes_(ulByteCount)   PBYTE   pBuffer,
         _In_                            ULONG   ulByteCount
     );
+    void                        WriteChunk
+    (
+        _In_reads_bytes_(ulByteCount)   PBYTE   pBuffer,
+        _In_                            ULONG   ulByteCount
+    );
 
 private:
     NTSTATUS                    FileClose

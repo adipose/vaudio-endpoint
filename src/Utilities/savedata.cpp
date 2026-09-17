@@ -40,8 +40,20 @@ Abstract:
 #define FMT__TAG                    0x20746D66;
 #define DATA_TAG                    0x61746164;
 
-#define DEFAULT_FRAME_COUNT         4
-#define DEFAULT_FRAME_SIZE          PAGE_SIZE * 4 
+// The sample kept four frames of four WaveRT buffers each, and WriteData drops audio whenever the next frame is
+// still on its way to disk. Each frame costs a file open, a write and a close in a work item, so at a few hundred
+// kilobytes a second -- 96 kHz stereo, or 5.1 at 48 kHz -- a few percent went missing, and at 7.1 a third of it.
+// A capture with holes in it is worse than none, because it still looks like audio. More frames, and frames no
+// smaller than MIN_FRAME_SIZE, give seconds of slack at the highest rate the format table allows.
+//
+// The larger loss had a second cause. WriteData cut any write longer than one frame down to the frame size and
+// threw the rest away, and only one of the two buffer-allocation paths (the event-driven one) ever grew the frame
+// beyond the 16 KB default. A timer-driven exclusive stream at 192 kHz moves more than 16 KB between two timer
+// ticks, so it lost the excess on every tick. The default frame is now MIN_FRAME_SIZE too, and WriteData splits a
+// long write instead of truncating it.
+#define DEFAULT_FRAME_COUNT         32
+#define MIN_FRAME_SIZE              (256 * 1024)
+#define DEFAULT_FRAME_SIZE          MIN_FRAME_SIZE
 #define DEFAULT_BUFFER_SIZE         DEFAULT_FRAME_SIZE * DEFAULT_FRAME_COUNT
 
 #define DEFAULT_FILE_FOLDER1        L"\\DriverData\\Audio_Samples"
@@ -826,6 +838,11 @@ CSaveData::SetMaxWriteSize
  
     DPF_ENTER(("[CSaveData::SetMaxWriteSize]"));
 
+    if (ulMaxWriteSize < MIN_FRAME_SIZE)
+    {
+        ulMaxWriteSize = MIN_FRAME_SIZE;
+    }
+
     // 
     // Compute new buffer size.
     //
@@ -963,6 +980,26 @@ CSaveData::WriteData
 {
     ASSERT(pBuffer);
 
+    // WriteChunk assumes a write no longer than a frame; feed it a long one in pieces.
+    while (ulByteCount > m_ulFrameSize)
+    {
+        WriteChunk(pBuffer, m_ulFrameSize);
+        pBuffer += m_ulFrameSize;
+        ulByteCount -= m_ulFrameSize;
+    }
+    WriteChunk(pBuffer, ulByteCount);
+} // WriteData
+
+//=============================================================================
+void
+CSaveData::WriteChunk
+(
+    _In_reads_bytes_(ulByteCount)   PBYTE   pBuffer,
+    _In_                            ULONG   ulByteCount
+)
+{
+    ASSERT(pBuffer);
+
     BOOL                        fSaveFrame = FALSE;
     ULONG                       ulSaveFrameIndex = 0;
     KIRQL                       oldIrql;
@@ -974,7 +1011,7 @@ CSaveData::WriteData
         return;
     }
 
-    DPF_ENTER(("[CSaveData::WriteData ulByteCount=%lu]", ulByteCount));
+    DPF_ENTER(("[CSaveData::WriteChunk ulByteCount=%lu]", ulByteCount));
 
     if( 0 == ulByteCount )
     {
@@ -1057,5 +1094,5 @@ CSaveData::WriteData
         DPF(D_BLAB, ("[Frame %d is in use]", m_ulFrameIndex));
     }
 
-} // WriteData
+} // WriteChunk
 

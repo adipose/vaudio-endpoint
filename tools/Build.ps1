@@ -57,6 +57,21 @@ $vcToolsDir = $vcEnv['VCToolsInstallDir']
 if (-not $vcToolsDir) { throw "vcvars64.bat did not set VCToolsInstallDir ($vcvars)." }
 $env:PATH = $vcEnv['PATH']
 
+# Stamp a version that is unique to this build into the staged INF. PnP compares DriverVer before anything else:
+# a rebuilt package with the same version is "already installed", and the old binary stays in the driver store
+# while devcon reports success.
+function Set-InfDriverVer {
+    param([string] $Path)
+    $now = Get-Date
+    $ver = '1.{0}.{1}.{2}' -f (($now.Year - 2000) * 1000 + $now.DayOfYear), ($now.Hour * 100 + $now.Minute), $now.Second
+    $stamp = 'DriverVer = {0},{1}' -f $now.ToString('MM/dd/yyyy', [Globalization.CultureInfo]::InvariantCulture), $ver
+    $text = [IO.File]::ReadAllText($Path)
+    $new = [regex]::Replace($text, '(?m)^DriverVer\s*=.*$', $stamp)
+    if ($new -eq $text) { throw "No DriverVer line found in $Path" }
+    [IO.File]::WriteAllText($Path, $new)
+    Write-Host "Driver version $ver" -ForegroundColor Cyan
+}
+
 function Invoke-Tool {
     param([string] $Exe, [string[]] $Arguments, [string] $What)
     & $Exe @Arguments 2>&1 | ForEach-Object { Write-Host $_ }
@@ -79,7 +94,8 @@ $env:INCLUDE = @(
 ) -join ';'
 $env:LIB = @((Join-Path $tc.WdkRoot "Lib\$ver\km\x64"), (Join-Path $tc.WdkRoot "Lib\wdf\kmdf\x64\$kmdf")) -join ';'
 
-$sources = Get-ChildItem $src -Recurse -Filter *.cpp | ForEach-Object FullName
+# src\tools holds user-mode test clients, built separately below.
+$sources = Get-ChildItem $src -Recurse -Filter *.cpp | Where-Object { $_.FullName -notmatch '\\src\\tools\\' } | ForEach-Object FullName
 
 Write-Host "Compiling vaudio.sys ($($sources.Count) files) ..." -ForegroundColor Cyan
 
@@ -108,6 +124,31 @@ $linkArgs = @(
 Invoke-Tool link.exe $linkArgs 'link'
 
 Copy-Item (Join-Path $src 'Main\vaudio.inf') $out -Force
+Set-InfDriverVer (Join-Path $out 'vaudio.inf')
+
+# --- Test client -------------------------------------------------------------
+#
+# wasapiprobe is an ordinary user-mode program: the VC runtime and the SDK's um headers, none of the km ones.
+
+Write-Host 'Compiling wasapiprobe.exe ...' -ForegroundColor Cyan
+
+$env:INCLUDE = @(
+    (Join-Path $vcToolsDir 'include'),
+    (Join-Path $sdkInc 'ucrt'), (Join-Path $sdkInc 'shared'), (Join-Path $sdkInc 'um')
+) -join ';'
+$env:LIB = @(
+    (Join-Path $vcToolsDir 'lib\x64'),
+    (Join-Path $tc.SdkLibRoot 'ucrt\x64'), (Join-Path $tc.SdkLibRoot 'um\x64')
+) -join ';'
+
+$clArgs = @(
+    '/nologo', '/W4', '/WX', '/O2', '/EHsc', '/MT', '/std:c++17', '/permissive-',
+    '/DUNICODE', '/D_UNICODE', '/D_WIN32_WINNT=0x0A00',
+    "/Fo$obj/", "/Fe$out/wasapiprobe.exe",
+    (Join-Path $src 'tools\wasapiprobe.cpp'),
+    '/link', '/SUBSYSTEM:CONSOLE', 'ole32.lib', 'avrt.lib'
+)
+Invoke-Tool cl.exe $clArgs 'cl (wasapiprobe)'
 
 if ($NoSign) {
     Write-Host "Built (unsigned): $out" -ForegroundColor Green
