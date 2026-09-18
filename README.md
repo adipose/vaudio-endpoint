@@ -99,9 +99,10 @@ with `ExAllocatePool2`), so that is the oldest target.
 
 ## Licence
 
-Two licences, by directory -- see `NOTICE`. Everything under `src/` derives
-from Microsoft's SimpleAudioSample and remains under the Microsoft Public
-License (`LICENSE.microsoft-sample`), modifications included; the first commit
-is the pristine sample, so the history shows exactly what changed. The tools
-and tests outside `src/` are MIT (`LICENSE`). GitHub's licence badge can only
-show one of the two.
+Two licences, by directory -- see `NOTICE`. The driver sources (`src/Main`,
+`src/Filters`, `src/Inc`, `src/Utilities`) derive from Microsoft's
+SimpleAudioSample and remain under the Microsoft Public License
+(`LICENSE.microsoft-sample`), modifications included; the first commit is the
+pristine sample, so the history shows exactly what changed. Everything else,
+including the `wasapiprobe` client in `src/tools`, is MIT (`LICENSE`).
+GitHub's licence badge can only show one of the two.
